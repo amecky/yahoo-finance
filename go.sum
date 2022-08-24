@@ -1,0 +1,4 @@
+github.com/amecky/fin-math v0.0.0-20220824184257-0fd1a6b3ab10 h1:UGCDF0qPA8kQt6y3+sTDDwxYPM5K4ruarsCxecYvWPA=
+github.com/amecky/fin-math v0.0.0-20220824184257-0fd1a6b3ab10/go.mod h1:J+kcVcLft5UCbTaNMj6IkDaz5I8bX7fmk7uk0SeqCcc=
+github.com/chobie/go-gaussian v0.0.0-20150107165016-53c09d90eeaf h1:joIg05jbCevMTHYELK+iU5xNS6FoOEhp9IpFQ5e2B+8=
+github.com/chobie/go-gaussian v0.0.0-20150107165016-53c09d90eeaf/go.mod h1:cTHhhPCN9aDCOgkFM4Pty90DILaV/TrfCRhMtOFCUUI=

@@ -17,6 +17,16 @@ func (yc *YahooClient) Load() (MetaData, []Candle, error)
 ```
 It will return some basic meta data and a slice of candles. In case of an error you will get the error of course.
 
+## Using fin-math and the matrix
+
+This is more an internal function. It builds a matrix from the github.com/amecky/fin-math project containing the data.
+
+```
+func (yc *YahooClient) LoadMatrix() (MetaData, *math.Matrix, error)
+```
+This matrix can be used to run all sorts of indicators and so on which are included in the fin-math repo.
+
+
 ## Candle
 
 The client returns a slice of Candle. The Timestamp uses the format "yyyy-MM-dd HH:mm"

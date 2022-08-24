@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/amecky/fin-math/math"
 )
 
 type PriceInterval string
@@ -191,6 +193,46 @@ func (yc *YahooClient) Load() (MetaData, []Candle, error) {
 						Volume:    q.Volume[i],
 					}
 					ret = append(ret, cnd)
+				}
+			}
+		}
+	}
+	return md, ret, nil
+}
+
+func (yc *YahooClient) LoadMatrix() (MetaData, *math.Matrix, error) {
+
+	var md MetaData
+	resp, err := http.Get(yc.URL)
+	if err != nil {
+		return md, nil, err
+	}
+	body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		body, _ := ioutil.ReadAll(resp.Body)
+		return md, nil, errors.New(fmt.Sprintf("Statuscode: %d - Body: %s", resp.StatusCode, string(body)))
+	}
+	var chart ChartData
+	err = json.Unmarshal(body, &chart)
+	if err != nil {
+		return md, nil, err
+	}
+	ret := math.NewMatrix(6)
+	for _, r := range chart.Chart.Result {
+		md = r.Meta
+		idx := 0
+		for _, q := range r.Indicators.Quotes {
+			for i := 0; i < len(q.Open); i++ {
+				if q.Volume[i] > 0 {
+					tm := time.Unix(int64(r.Timestamps[i]), 0)
+					row := ret.AddRow(tm.Format("2006-01-02 15:04"))
+					row.Set(math.OPEN, q.Open[idx])
+					row.Set(math.HIGH, q.High[idx])
+					row.Set(math.LOW, q.Low[idx])
+					row.Set(math.CLOSE, q.Close[idx])
+					row.Set(math.ADJ_CLOSE, q.Close[idx])
+					row.Set(math.VOLUME, float64(q.Volume[idx]))
+					idx++
 				}
 			}
 		}
