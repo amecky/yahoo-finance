@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -86,11 +87,32 @@ func WithDateRange(dr DateRange) YahooClientOption {
 	}
 }
 
+func convertToUnixTimestamp(date string) string {
+	if date != "" {
+		et, err := time.Parse("2006-01-02 15:04", date)
+		if err == nil {
+			return strconv.FormatInt(et.Unix(), 10)
+		} else {
+
+		}
+	}
+	return ""
+}
+
 func (yc *YahooClient) updateUrl() {
 	// period1=1659540600&period2=1660038300
+	t := yc.TimePeriod
 	tp := "range=1d"
-	if yc.TimePeriod.Type == TPT_PERIOD {
+	if t.Type == TPT_PERIOD {
 		tp = "range=" + yc.TimePeriod.First
+	} else if t.Type == TPT_FIXED {
+		st := convertToUnixTimestamp(t.First + " 00:00")
+		et := convertToUnixTimestamp(t.First + " 23:59")
+		tp = "period1=" + st + "&period2=" + et
+	} else if t.Type == TPT_PERIOD {
+		st := convertToUnixTimestamp(t.First + " 00:00")
+		et := convertToUnixTimestamp(t.Second + " 23:59")
+		tp = "period1=" + st + "&period2=" + et
 	}
 	yc.URL = fmt.Sprintf("https://query1.finance.yahoo.com/v8/finance/chart/%s?symbol=%s&%s&interval=%s&includePrePost=true&events=div%%7Csplit%%7Cearn&corsDomain=finance.yahoo.com", yc.Ticker, yc.Ticker, tp, yc.Interval)
 }
@@ -149,7 +171,10 @@ func (yc *YahooClient) Load() (MetaData, []Candle, error) {
 		return md, nil, errors.New(fmt.Sprintf("Statuscode: %d - Body: %s", resp.StatusCode, string(body)))
 	}
 	var chart ChartData
-	json.Unmarshal(body, &chart)
+	err = json.Unmarshal(body, &chart)
+	if err != nil {
+		return md, nil, err
+	}
 	var ret = make([]Candle, 0)
 	for _, r := range chart.Chart.Result {
 		md = r.Meta
