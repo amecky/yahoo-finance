@@ -13,6 +13,8 @@ type PriceInterval string
 
 type DateRange string
 
+type TimePeriodType int
+
 const (
 	PI_ONE_MINUTE     = PriceInterval("1m")
 	PI_FIVE_MINUTES   = PriceInterval("5m")
@@ -22,20 +24,36 @@ const (
 	PI_ONE_DAY        = PriceInterval("1d")
 
 	PR_ONE_DAY   = DateRange("1d")
+	PR_ONE_WEEK  = DateRange("1wk")
 	PR_ONE_MONTH = DateRange("1mo")
+	PR_ONE_YEAR  = DateRange("1y")
+
+	TPT_FIXED  = TimePeriodType(1)
+	TPT_PERIOD = TimePeriodType(2)
+	TPT_RANGE  = TimePeriodType(3)
 )
 
+type TimePeriod struct {
+	Type   TimePeriodType
+	First  string
+	Second string
+}
+
 type YahooClient struct {
-	Ticker    string
-	URL       string
-	DateRange DateRange
-	Interval  PriceInterval
+	Ticker     string
+	URL        string
+	TimePeriod TimePeriod
+	Interval   PriceInterval
 }
 
 type YahooClientOption func(*YahooClient)
 
 func WithSpecificDate(date string) YahooClientOption {
 	return func(yc *YahooClient) {
+		yc.TimePeriod = TimePeriod{
+			Type:  TPT_FIXED,
+			First: date,
+		}
 		yc.updateUrl()
 	}
 }
@@ -47,23 +65,44 @@ func WithPriceInterval(pi PriceInterval) YahooClientOption {
 	}
 }
 
+func WithTimePeriod(start, end string) YahooClientOption {
+	return func(yc *YahooClient) {
+		yc.TimePeriod = TimePeriod{
+			Type:   TPT_PERIOD,
+			First:  start,
+			Second: end,
+		}
+		yc.updateUrl()
+	}
+}
+
 func WithDateRange(dr DateRange) YahooClientOption {
 	return func(yc *YahooClient) {
-		yc.DateRange = dr
+		yc.TimePeriod = TimePeriod{
+			Type:  TPT_RANGE,
+			First: "1wk",
+		}
 		yc.updateUrl()
 	}
 }
 
 func (yc *YahooClient) updateUrl() {
 	// period1=1659540600&period2=1660038300
-	yc.URL = fmt.Sprintf("https://query1.finance.yahoo.com/v8/finance/chart/%s?symbol=ZAL.DE&range=%s&interval=%s&includePrePost=true&events=div%%7Csplit%%7Cearn&corsDomain=finance.yahoo.com", yc.Ticker, yc.DateRange, yc.Interval)
+	tp := "range=1d"
+	if yc.TimePeriod.Type == TPT_PERIOD {
+		tp = "range=" + yc.TimePeriod.First
+	}
+	yc.URL = fmt.Sprintf("https://query1.finance.yahoo.com/v8/finance/chart/%s?symbol=%s&%s&interval=%s&includePrePost=true&events=div%%7Csplit%%7Cearn&corsDomain=finance.yahoo.com", yc.Ticker, yc.Ticker, tp, yc.Interval)
 }
 func NewYahooClient(ticker string, opts ...YahooClientOption) *YahooClient {
 	ret := &YahooClient{
-		Ticker:    ticker,
-		Interval:  PI_ONE_DAY,
-		DateRange: PR_ONE_MONTH,
-		URL:       fmt.Sprintf("https://query1.finance.yahoo.com/v7/finance/download/%s?range=%s&interval=%s&events=history&corsDomain=finance.yahoo.com", ticker, PR_ONE_MONTH, PI_ONE_DAY),
+		Ticker:   ticker,
+		Interval: PI_ONE_DAY,
+		TimePeriod: TimePeriod{
+			Type:  TPT_FIXED,
+			First: "1wk",
+		},
+		URL: fmt.Sprintf("https://query1.finance.yahoo.com/v7/finance/download/%s?range=%s&interval=%s&events=history&corsDomain=finance.yahoo.com", ticker, PR_ONE_MONTH, PI_ONE_DAY),
 	}
 	for _, o := range opts {
 		o(ret)

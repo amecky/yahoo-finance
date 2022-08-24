@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/amecky/yf/yf"
+	"github.com/amecky/yahoo-finance/yf"
 )
 
 func main() {
