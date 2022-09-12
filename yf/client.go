@@ -2,7 +2,6 @@ package yf
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -26,10 +25,12 @@ const (
 	PI_FOUR_HOUR      = PriceInterval("4h")
 	PI_ONE_DAY        = PriceInterval("1d")
 
-	PR_ONE_DAY   = DateRange("1d")
-	PR_ONE_WEEK  = DateRange("1wk")
-	PR_ONE_MONTH = DateRange("1mo")
-	PR_ONE_YEAR  = DateRange("1y")
+	PR_ONE_DAY    = DateRange("1d")
+	PR_ONE_WEEK   = DateRange("1wk")
+	PR_ONE_MONTH  = DateRange("1mo")
+	PR_ONE_YEAR   = DateRange("1y")
+	PR_TWO_YEARS  = DateRange("2y")
+	PR_FIVE_YEARS = DateRange("5y")
 
 	TPT_FIXED  = TimePeriodType(1)
 	TPT_PERIOD = TimePeriodType(2)
@@ -47,6 +48,7 @@ type YahooClient struct {
 	URL        string
 	TimePeriod TimePeriod
 	Interval   PriceInterval
+	Timeformat string
 }
 
 type YahooClientOption func(*YahooClient)
@@ -83,7 +85,7 @@ func WithDateRange(dr DateRange) YahooClientOption {
 	return func(yc *YahooClient) {
 		yc.TimePeriod = TimePeriod{
 			Type:  TPT_RANGE,
-			First: "1wk",
+			First: string(dr),
 		}
 		yc.updateUrl()
 	}
@@ -102,10 +104,9 @@ func convertToUnixTimestamp(date string) string {
 }
 
 func (yc *YahooClient) updateUrl() {
-	// period1=1659540600&period2=1660038300
 	t := yc.TimePeriod
 	tp := "range=1d"
-	if t.Type == TPT_PERIOD {
+	if t.Type == TPT_RANGE {
 		tp = "range=" + yc.TimePeriod.First
 	} else if t.Type == TPT_FIXED {
 		st := convertToUnixTimestamp(t.First + " 00:00")
@@ -120,10 +121,11 @@ func (yc *YahooClient) updateUrl() {
 }
 func NewYahooClient(ticker string, opts ...YahooClientOption) *YahooClient {
 	ret := &YahooClient{
-		Ticker:   ticker,
-		Interval: PI_ONE_DAY,
+		Ticker:     ticker,
+		Interval:   PI_ONE_DAY,
+		Timeformat: "2006-01-02 15:04",
 		TimePeriod: TimePeriod{
-			Type:  TPT_FIXED,
+			Type:  TPT_RANGE,
 			First: "1wk",
 		},
 		URL: fmt.Sprintf("https://query1.finance.yahoo.com/v7/finance/download/%s?range=%s&interval=%s&events=history&corsDomain=finance.yahoo.com", ticker, PR_ONE_MONTH, PI_ONE_DAY),
@@ -170,7 +172,7 @@ func (yc *YahooClient) Load() (MetaData, []Candle, error) {
 	body, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != 200 {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return md, nil, errors.New(fmt.Sprintf("Statuscode: %d - Body: %s", resp.StatusCode, string(body)))
+		return md, nil, fmt.Errorf("Statuscode: %d - Body: %s", resp.StatusCode, string(body))
 	}
 	var chart ChartData
 	err = json.Unmarshal(body, &chart)
@@ -185,7 +187,7 @@ func (yc *YahooClient) Load() (MetaData, []Candle, error) {
 				if q.Volume[i] > 0 {
 					tm := time.Unix(int64(r.Timestamps[i]), 0)
 					cnd := Candle{
-						Timestamp: tm.Format("2006-01-02 15:04"),
+						Timestamp: tm.Format(yc.Timeformat),
 						Open:      q.Open[i],
 						High:      q.High[i],
 						Low:       q.Low[i],
@@ -210,7 +212,7 @@ func (yc *YahooClient) LoadMatrix() (MetaData, *math.Matrix, error) {
 	body, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != 200 {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return md, nil, errors.New(fmt.Sprintf("Statuscode: %d - Body: %s", resp.StatusCode, string(body)))
+		return md, nil, fmt.Errorf("Statuscode: %d - Body: %s", resp.StatusCode, string(body))
 	}
 	var chart ChartData
 	err = json.Unmarshal(body, &chart)
@@ -225,7 +227,7 @@ func (yc *YahooClient) LoadMatrix() (MetaData, *math.Matrix, error) {
 			for i := 0; i < len(q.Open); i++ {
 				if q.Volume[i] > 0 {
 					tm := time.Unix(int64(r.Timestamps[i]), 0)
-					row := ret.AddRow(tm.Format("2006-01-02 15:04"))
+					row := ret.AddRow(tm.Format(yc.Timeformat))
 					row.Set(math.OPEN, q.Open[idx])
 					row.Set(math.HIGH, q.High[idx])
 					row.Set(math.LOW, q.Low[idx])
