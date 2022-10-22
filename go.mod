@@ -1,6 +1,6 @@
 module github.com/amecky/yahoo-finance
 
-go 1.18
+go 1.17
 
 require (
 	github.com/amecky/fin-math v0.0.0-20220824184257-0fd1a6b3ab10 // indirect
